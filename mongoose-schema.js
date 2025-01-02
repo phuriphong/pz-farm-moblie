@@ -158,9 +158,12 @@ const measurementSchema = new mongoose.Schema({
 treeSchema.index({ location: '2dsphere' });
 treeSchema.index({ treeId: 1 }, { unique: true });
 measurementSchema.index({ treeId: 1, timestamp: -1 });
-
+// สร้างโมเดลจาก Schema
+const Garden = mongoose.model('Garden', gardenSchema);
+const Tree = mongoose.model('Tree', treeSchema);
+const Measurement = mongoose.model('Measurement', measurementSchema);
 module.exports = {
-    gardenSchema,
-    treeSchema,
-    measurementSchema
+    Garden,
+    Tree,
+    Measurement
   };
