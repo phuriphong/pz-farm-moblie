@@ -4,6 +4,9 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./swagger");
+const gardenSchema = require("./mongoose-schema");
+const treeSchema = require("./mongoose-schema");
+const measurementSchema = require("./mongoose-schema");
 
 // Initialize express app
 const app = express();
@@ -14,7 +17,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
+//#region  MongoDB Connection
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://sa:NaBDdP48LxqIHqxT@pz-smartfarm-app.zj6ak.mongodb.net/pz-smart-farm';
 
@@ -28,172 +31,13 @@ mongoose.connect(MONGODB_URI, {
   process.exit(1);
 });
 
-// Schema Definitions
-const gardenSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  location: {
-    latitude: {
-      type: Number,
-      required: true
-    },
-    longitude: {
-      type: Number,
-      required: true
-    }
-  },
-  area: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  owner: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-});
 
-const treeSchema = new mongoose.Schema({
-  gardenId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Garden',
-    required: true
-  },
-  species: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  plantedDate: {
-    type: Date,
-    required: true
-  },
-  status: {
-    type: String,
-    enum: ['Healthy', 'Sick', 'Dead'],
-    default: 'Healthy'
-  },
-  height: {
-    type: Number,
-    min: 0
-  },
-  diameter: {
-    type: Number,
-    min: 0
-  },
-  treeId: {
-    type: String,
-    unique: true
-  },
-  treeName: String,
-  treeType: String,
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      required: true
-    },
-    coordinates: {
-      type: [Number],
-      required: true
-    }
-  },
-  latitude: Number,
-  longitude: Number,
-  tree_focus: {
-    type: Number,
-    default: 0
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-const measurementSchema = new mongoose.Schema({
-  treeId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Tree',
-    required: true
-  },
-  chipId: String,
-  timestamp: {
-    type: Date,
-    default: Date.now
-  },
-  measurements: {
-    soilMoisture: {
-      type: Number,
-      min: 0,
-      max: 100
-    },
-    soilPH: {
-      type: Number,
-      min: 0,
-      max: 14
-    },
-    airTemperature: {
-      type: Number
-    },
-    humidity: {
-      type: Number,
-      min: 0,
-      max: 100
-    },
-    lightIntensity: {
-      type: Number,
-      min: 0
-    },
-    leafWetness: {
-      type: Number,
-      min: 0,
-      max: 1
-    },
-    nitrogen: {
-      type: Number,
-      min: 0
-    },
-    phosphorus: {
-      type: Number,
-      min: 0
-    },
-    potassium: {
-      type: Number,
-      min: 0
-    }
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-// Indexes
-treeSchema.index({ location: '2dsphere' });
-treeSchema.index({ treeId: 1 }, { unique: true });
-measurementSchema.index({ treeId: 1, timestamp: -1 });
 
 // Models
 const Garden = mongoose.model('Garden', gardenSchema);
 const Tree = mongoose.model('Tree', treeSchema);
 const Measurement = mongoose.model('Measurement', measurementSchema);
-
+//#endregion  MongoDB Connection
 // Constants
 const MEASUREMENT_THRESHOLDS = {
   soilMoisture: { min: 20, max: 80 },
@@ -202,8 +46,7 @@ const MEASUREMENT_THRESHOLDS = {
   phosphorus: 5,
   potassium: 5
 };
-
-// Helper Functions
+//#region Helper Functions
 const generateAlert = (measurements) => {
   const alerts = [];
   const { soilMoisture, soilPH, nitrogen, phosphorus, potassium } = measurements;
@@ -228,7 +71,7 @@ const generateTreeId = async () => {
   const lastNum = parseInt(lastTree.treeId.substring(1), 10);
   return `T${(lastNum + 1).toString().padStart(5, '0')}`;
 };
-
+// Helper Functions
 // Error Handler Middleware
 const errorHandler = (err, req, res, next) => {
   console.error(err.stack);
@@ -237,9 +80,9 @@ const errorHandler = (err, req, res, next) => {
     stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 };
+//#endregion
 
-// Routes
-
+//#region Routes
 // Garden Routes
 app.post('/gardens', async (req, res, next) => {
   try {
@@ -250,7 +93,6 @@ app.post('/gardens', async (req, res, next) => {
     next(error);
   }
 });
-
 app.get('/gardens', async (req, res, next) => {
   try {
     const gardens = await Garden.find().sort({ createdAt: -1 });
@@ -260,7 +102,6 @@ app.get('/gardens', async (req, res, next) => {
     next(error);
   }
 });
-
 // Tree Routes
 app.post('/trees', async (req, res, next) => {
   try {
@@ -279,7 +120,6 @@ app.post('/trees', async (req, res, next) => {
     next(error);
   }
 });
-
 app.get('/trees', async (req, res, next) => {
   try {
     const trees = await Tree.find()
@@ -291,7 +131,6 @@ app.get('/trees', async (req, res, next) => {
     next(error);
   }
 });
-
 app.get('/trees_near', async (req, res, next) => {
   try {
     const { latitude, longitude } = req.query;
@@ -314,7 +153,6 @@ app.get('/trees_near', async (req, res, next) => {
     next(error);
   }
 });
-
 app.get('/treesbygardenId/:gardenId', async (req, res, next) => {
   try {
     const { gardenId } = req.params;
@@ -325,7 +163,6 @@ app.get('/treesbygardenId/:gardenId', async (req, res, next) => {
     next(error);
   }
 });
-
 // Measurement Routes
 app.post('/measurements', async (req, res, next) => {
   try {
@@ -355,7 +192,6 @@ app.post('/measurements', async (req, res, next) => {
     next(error);
   }
 });
-
 app.get('/measurements', async (req, res, next) => {
   try {
     const { gardenId, treeId } = req.query;
@@ -391,7 +227,6 @@ app.get('/measurements', async (req, res, next) => {
     next(error);
   }
 });
-
 app.get('/abnormal-measurements', async (req, res, next) => {
   try {
     const measurements = await Measurement.find()
@@ -428,7 +263,6 @@ app.get('/abnormal-measurements', async (req, res, next) => {
     next(error);
   }
 });
-
 // Tree Focus Management
 app.put('/updateTreeFocus/:treeId', async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -457,11 +291,11 @@ app.put('/updateTreeFocus/:treeId', async (req, res, next) => {
     session.endSession();
   }
 });
-
 // SPA Support
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "public", "index.html"));
 });
+//#end region Routes
 
 // Error handling middleware
 app.use(errorHandler);
